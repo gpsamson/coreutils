@@ -34,8 +34,6 @@ use std::io::{self, BufWriter, Stdout, StdoutLock, Write as IoWrite};
 use std::os::unix::ffi::OsStrExt;
 #[cfg(all(target_os = "wasi", not(target_env = "p2")))]
 use std::os::wasi::ffi::OsStrExt;
-#[cfg(all(target_os = "wasi", target_env = "p2"))]
-use std::os::unix::ffi::OsStrExt;
 
 // These used to be defined here, but they live in their own crate now.
 pub use os_display::{Quotable, Quoted};
@@ -78,9 +76,13 @@ pub trait OsWrite: io::Write {
     /// On Windows, if the OS string is not valid Unicode, an error of kind
     /// [`io::ErrorKind::InvalidData`] is returned.
     fn write_all_os(&mut self, buf: &OsStr) -> io::Result<()> {
-        #[cfg(any(unix, target_os = "wasi"))]
+        #[cfg(unix)]
         {
             self.write_all(buf.as_bytes())
+        }
+        #[cfg(target_os = "wasi")]
+        {
+            self.write_all(buf.as_encoded_bytes())
         }
 
         #[cfg(not(any(unix, target_os = "wasi")))]
