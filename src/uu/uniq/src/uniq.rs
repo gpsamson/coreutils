@@ -9,7 +9,7 @@ use clap::{
 };
 use std::ffi::{OsStr, OsString};
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Write, stdin, stdout};
+use std::io::{BufRead, BufReader, BufWriter, Write, stdin};
 use std::num::IntErrorKind;
 use uucore::display::Quotable;
 use uucore::error::{FromIo, UError, UResult, USimpleError};
@@ -643,6 +643,14 @@ fn map_clap_errors(clap_error: Error) -> Box<dyn UError> {
     USimpleError::new(1, error_message)
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let (args, skip_fields_old, skip_chars_old) = handle_obsolete(args);
@@ -845,7 +853,7 @@ fn open_output_file(out_file_name: Option<&OsStr>) -> UResult<Box<dyn Write>> {
         }
         _ => Box::new(BufWriter::with_capacity(
             OUTPUT_BUFFER_CAPACITY,
-            stdout().lock(),
+            get_stdout(),
         )),
     })
 }

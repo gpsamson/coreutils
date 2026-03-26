@@ -49,10 +49,20 @@ pub use os_display::{Quotable, Quoted};
 /// using low-level library calls and bypassing `io::Write`. This is not a big priority
 /// because broken filenames are much rarer on Windows than on Unix.
 pub fn println_verbatim<S: AsRef<OsStr>>(text: S) -> io::Result<()> {
-    let mut stdout = io::stdout().lock();
-    stdout.write_all_os(text.as_ref())?;
-    stdout.write_all(b"\n")?;
-    Ok(())
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut out = crate::mods::output_capture::stdout();
+        out.write_all(text.as_ref().as_encoded_bytes())?;
+        out.write_all(b"\n")?;
+        return Ok(());
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut stdout = io::stdout().lock();
+        stdout.write_all_os(text.as_ref())?;
+        stdout.write_all(b"\n")?;
+        Ok(())
+    }
 }
 
 /// Like `println_verbatim`, without the trailing newline.

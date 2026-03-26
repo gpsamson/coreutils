@@ -4,7 +4,7 @@
 // file that was distributed with this source code.
 // spell-checker:ignore (ToDO) bigdecimal extendedbigdecimal numberparse hexadecimalfloat biguint
 use std::ffi::{OsStr, OsString};
-use std::io::{BufWriter, Write, stdout};
+use std::io::{BufWriter, Write};
 
 use clap::{Arg, ArgAction, Command};
 use num_bigint::BigUint;
@@ -90,6 +90,14 @@ fn select_precision(
         (Some(f), Some(i), Some(_)) => Some(f.max(i)),
         _ => None,
     }
+}
+
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
 }
 
 #[uucore::main]
@@ -355,8 +363,7 @@ fn print_seq(
     fast_allowed: bool,
     padding: usize, // Used by fast path only
 ) -> std::io::Result<()> {
-    let stdout = stdout().lock();
-    let mut stdout = BufWriter::new(stdout);
+    let mut stdout = BufWriter::new(get_stdout());
     let (first, increment, last) = range;
 
     if fast_allowed {

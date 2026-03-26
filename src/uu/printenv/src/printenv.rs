@@ -17,6 +17,14 @@ static OPT_NULL: &str = "null";
 
 static ARG_VARIABLES: &str = "variables";
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main(no_signals)]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result_with_exit_code(uu_app(), args, 2)?;
@@ -41,8 +49,8 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
             continue;
         }
         if let Some(var) = env::var_os(env_var) {
-            let mut stdout = std::io::stdout().lock();
-            stdout.write_all_os(&var)?;
+            let mut stdout = get_stdout();
+            stdout.write_all(var.as_encoded_bytes())?;
             write!(stdout, "{separator}")?;
         } else {
             error_found = true;

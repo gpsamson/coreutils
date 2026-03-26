@@ -14,7 +14,7 @@ use operation::{
 };
 use simd::process_input;
 use std::ffi::OsString;
-use std::io::{stdin, stdout};
+use std::io::{stdin};
 use uucore::display::Quotable;
 use uucore::error::{UResult, USimpleError, UUsageError};
 use uucore::fs::is_stdin_directory;
@@ -27,6 +27,14 @@ mod options {
     pub const SQUEEZE: &str = "squeeze-repeats";
     pub const TRUNCATE_SET1: &str = "truncate-set1";
     pub const SETS: &str = "sets";
+}
+
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
 }
 
 #[uucore::main]
@@ -98,7 +106,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
 
     let stdin = stdin();
     let mut locked_stdin = stdin.lock();
-    let mut locked_stdout = stdout().lock();
+    let mut locked_stdout = get_stdout();
 
     // According to the man page: translating only happens if deleting or if a second set is given
     let translating = !delete_flag && sets.len() > 1;

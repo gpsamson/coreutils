@@ -7,7 +7,7 @@ use clap::{Arg, ArgAction, Command};
 use std::cell::{OnceCell, RefCell};
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Stdin, Write, stdin, stdout};
+use std::io::{BufRead, BufReader, Read, Stdin, Write, stdin};
 use std::iter::Cycle;
 use std::path::Path;
 use std::rc::Rc;
@@ -23,6 +23,14 @@ mod options {
     pub const SERIAL: &str = "serial";
     pub const FILE: &str = "file";
     pub const ZERO_TERMINATED: &str = "zero-terminated";
+}
+
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
 }
 
 #[uucore::main]
@@ -113,7 +121,7 @@ fn paste(
 
     let line_ending_byte = u8::from(line_ending);
     let input_source_vec_len = input_source_vec.len();
-    let mut stdout = stdout().lock();
+    let mut stdout = get_stdout();
 
     if !serial && input_source_vec_len == 1 {
         // With a single input source (no -s), `paste` output is identical to input,

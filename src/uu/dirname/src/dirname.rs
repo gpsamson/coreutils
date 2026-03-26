@@ -8,6 +8,7 @@ use std::borrow::Cow;
 use std::ffi::OsString;
 #[cfg(unix)]
 use uucore::display::print_verbatim;
+use std::io::Write;
 use uucore::error::{UResult, UUsageError};
 use uucore::format_usage;
 use uucore::line_ending::LineEnding;
@@ -125,18 +126,22 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
             let result_os = std::ffi::OsStr::from_bytes(&result);
             print_verbatim(result_os).unwrap();
         }
-        #[cfg(not(unix))]
+        #[cfg(all(not(unix), target_arch = "wasm32"))]
         {
-            // On non-Unix, fall back to lossy conversion
+            let mut out = uucore::output_capture::stdout();
+            let _ = out.write_all(&result);
+            let _ = out.write_all(&[u8::from(line_ending)]);
+        }
+        #[cfg(all(not(unix), not(target_arch = "wasm32")))]
+        {
+            // On non-Unix/non-wasm, fall back to lossy conversion
             if let Ok(s) = std::str::from_utf8(&result) {
                 print!("{s}");
             } else {
-                // Fallback for non-UTF-8 paths on non-Unix systems
                 print!(".");
             }
+            print!("{line_ending}");
         }
-
-        print!("{line_ending}");
     }
 
     Ok(())

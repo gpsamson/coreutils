@@ -280,6 +280,14 @@ fn parse_military_timezone_with_offset(s: &str) -> Option<(i32, DayDelta)> {
     Some((hours_from_midnight, day_delta))
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
 #[allow(clippy::cognitive_complexity)]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
@@ -542,7 +550,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     };
 
     let format_string = make_format_string(&settings);
-    let mut stdout = BufWriter::new(std::io::stdout().lock());
+    let mut stdout = BufWriter::new(get_stdout());
 
     // Format all the dates
     let config = Config::new().custom(PosixCustom::new()).lenient(true);
