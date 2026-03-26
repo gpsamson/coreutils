@@ -6,7 +6,7 @@
 use clap::{Arg, ArgAction, Command};
 use std::ffi::{OsStr, OsString};
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, BufWriter, Read, Write, stdin, stdout};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write, stdin};
 use std::path::Path;
 use uucore::display::Quotable;
 use uucore::error::{FromIo, UResult, USimpleError, set_exit_code};
@@ -213,6 +213,14 @@ pub mod options {
     pub const NUMBER_WIDTH: &str = "number-width";
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
@@ -381,7 +389,7 @@ fn write_line(writer: &mut impl Write, line: &[u8]) -> io::Result<()> {
 
 /// `nl` implements the main functionality for an individual buffer.
 fn nl<T: Read>(reader: &mut BufReader<T>, stats: &mut Stats, settings: &Settings) -> UResult<()> {
-    let mut writer = BufWriter::new(stdout());
+    let mut writer = BufWriter::new(get_stdout());
     let mut current_numbering_style = &settings.body_numbering;
     let mut line = Vec::new();
 

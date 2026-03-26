@@ -6,7 +6,7 @@
 use clap::{Arg, ArgAction, Command, builder::PossibleValue};
 use std::ffi::OsString;
 use std::fs::OpenOptions;
-use std::io::{Error, ErrorKind, Read, Result, Write, stderr, stdin, stdout};
+use std::io::{Error, ErrorKind, Read, Result, Write, stderr, stdin};
 use std::path::PathBuf;
 use uucore::display::Quotable;
 use uucore::error::UResult;
@@ -50,7 +50,16 @@ enum OutputErrorMode {
     ExitNoPipe,
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
 
@@ -178,7 +187,7 @@ fn tee(options: &Options) -> Result<()> {
         0,
         NamedWriter {
             name: translate!("tee-standard-output").into(),
-            inner: Box::new(stdout()),
+            inner: get_stdout(),
         },
     );
 

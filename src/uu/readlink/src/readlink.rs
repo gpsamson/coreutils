@@ -9,7 +9,7 @@ use clap::{Arg, ArgAction, Command};
 use std::env;
 use std::ffi::OsString;
 use std::fs;
-use std::io::{Write, stdout};
+use std::io::{Write};
 use std::path::{Path, PathBuf};
 use uucore::display::Quotable;
 use uucore::error::{FromIo, UResult, UUsageError};
@@ -30,7 +30,16 @@ const OPT_ZERO: &str = "zero";
 
 const ARG_FILES: &str = "files";
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main(no_signals)]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
 
@@ -188,7 +197,7 @@ pub fn uu_app() -> Command {
 fn show(path: &Path, line_ending: Option<LineEnding>) -> std::io::Result<()> {
     uucore::display::print_verbatim(path)?;
     if let Some(line_ending) = line_ending {
-        write!(stdout(), "{line_ending}")?;
+        { let mut w = get_stdout(); write!(w, "{line_ending}")?; }
     }
-    stdout().flush()
+    get_stdout().flush()
 }

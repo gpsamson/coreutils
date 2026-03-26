@@ -57,7 +57,10 @@ pub fn println_verbatim<S: AsRef<OsStr>>(text: S) -> io::Result<()> {
 
 /// Like `println_verbatim`, without the trailing newline.
 pub fn print_verbatim<S: AsRef<OsStr>>(text: S) -> io::Result<()> {
-    io::stdout().write_all_os(text.as_ref())
+    #[cfg(target_arch = "wasm32")]
+    { crate::mods::output_capture::stdout().write_all(text.as_ref().as_encoded_bytes()) }
+    #[cfg(not(target_arch = "wasm32"))]
+    { io::stdout().write_all_os(text.as_ref()) }
 }
 
 /// [`io::Write`], but for OS strings.

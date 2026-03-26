@@ -36,6 +36,8 @@ pub use crate::mods::posix;
 // Output capture for WASIp2 component mode.
 #[cfg(target_arch = "wasm32")]
 pub use crate::mods::output_capture::{capture_stdout, capture_stderr, take_stdout, take_stderr};
+#[cfg(target_arch = "wasm32")]
+pub use crate::mods::output_capture;
 // * feature-gated modules
 #[cfg(feature = "backup-control")]
 pub use crate::features::backup_control;

@@ -7,6 +7,14 @@ use std::io::Write;
 use uucore::{crate_version, translate};
 
 // uucore::main does not support no-result
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 pub fn uumain(mut args: impl uucore::Args) -> i32 {
     // skip binary name
     let (Some(flag), None) = (args.nth(1), args.next()) else {
@@ -17,7 +25,7 @@ pub fn uumain(mut args: impl uucore::Args) -> i32 {
         uu_app().print_help()
     } else if flag == "--version" {
         // avoid uu_app for smaller binary size
-        writeln!(std::io::stdout(), "true {}", crate_version!())
+        { let mut w = get_stdout(); writeln!(w, "true {}", crate_version!()) }
     } else {
         return 0;
     };
@@ -26,7 +34,10 @@ pub fn uumain(mut args: impl uucore::Args) -> i32 {
         && print_fail.kind() != std::io::ErrorKind::BrokenPipe
     {
         // Try to display this error.
-        let _ = writeln!(std::io::stderr(), "true: {print_fail}");
+        #[cfg(target_arch = "wasm32")]
+        { let _ = writeln!(uucore::output_capture::stderr(), "true: {print_fail}"); }
+        #[cfg(not(target_arch = "wasm32"))]
+        { let _ = writeln!(std::io::stderr(), "true: {print_fail}"); }
         // Mirror GNU options. When failing to print warnings or version flags, then we exit
         // with FAIL. This avoids allocation some error information which may result in yet
         // other types of failure.

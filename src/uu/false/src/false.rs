@@ -7,6 +7,14 @@ use std::io::Write;
 use uucore::{crate_version, translate};
 
 // uucore::main does not support no-result
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 pub fn uumain(mut args: impl uucore::Args) -> i32 {
     // skip binary name
     let (Some(flag), None) = (args.nth(1), args.next()) else {
@@ -17,7 +25,7 @@ pub fn uumain(mut args: impl uucore::Args) -> i32 {
         uu_app().print_help()
     } else if flag == "--version" {
         // avoid uu_app for smaller binary size
-        writeln!(std::io::stdout(), "false {}", crate_version!())
+        { let mut w = get_stdout(); writeln!(w, "false {}", crate_version!()) }
     } else {
         return 1;
     };
@@ -25,7 +33,10 @@ pub fn uumain(mut args: impl uucore::Args) -> i32 {
     if let Err(print_fail) = error
         && print_fail.kind() != std::io::ErrorKind::BrokenPipe
     {
-        let _ = writeln!(std::io::stderr(), "false: {print_fail}");
+        #[cfg(target_arch = "wasm32")]
+        { let _ = writeln!(uucore::output_capture::stderr(), "false: {print_fail}"); }
+        #[cfg(not(target_arch = "wasm32"))]
+        { let _ = writeln!(std::io::stderr(), "false: {print_fail}"); }
     }
     1
 }

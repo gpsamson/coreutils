@@ -8,7 +8,7 @@
 use clap::builder::ValueParser;
 use clap::{Arg, ArgAction, Command};
 use std::ffi::OsString;
-use std::io::{Write, stdout};
+use std::io::{Write};
 use std::path::PathBuf;
 use uucore::display::Quotable;
 use uucore::error::{UResult, UUsageError};
@@ -24,7 +24,16 @@ pub mod options {
     pub static ZERO: &str = "zero";
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main(no_signals)]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     //
     // Argument parsing
@@ -71,7 +80,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     //
 
     for path in name_args {
-        let mut out = stdout();
+        let mut out = get_stdout();
         out.write_all(&basename(path, &suffix)?)?;
         write!(out, "{line_ending}")?;
     }

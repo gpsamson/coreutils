@@ -11,7 +11,7 @@ use memchr::{Memchr3, memchr_iter, memmem::Finder};
 use std::cmp::Ordering;
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Split, Stdin, Write, stdin, stdout};
+use std::io::{BufRead, BufReader, BufWriter, Split, Stdin, Write, stdin};
 use std::num::IntErrorKind;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
@@ -826,7 +826,16 @@ fn parse_settings(matches: &clap::ArgMatches) -> UResult<Settings> {
     Ok(settings)
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
 
@@ -1029,8 +1038,8 @@ fn exec<Sep: Separator>(
 
     let repr = Repr::new(settings.line_ending, sep, format, &settings.empty);
 
-    let stdout = stdout();
-    let mut writer = BufWriter::new(stdout.lock());
+    let mut _stdout_box = get_stdout();
+    let mut writer = BufWriter::new(&mut *_stdout_box);
 
     if settings.headers {
         state1.write_headers(&mut writer, &state2, &repr)?;

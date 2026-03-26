@@ -71,7 +71,16 @@ impl ValueParserFactory for NonEmptyOsStringParser {
     }
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main(no_signals)]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
 
@@ -301,7 +310,7 @@ fn resolve_path(
     let abs = process_relative(abs, relative_base, relative_to);
 
     print_verbatim(abs)?;
-    stdout().write_all(&[line_ending.into()])?;
+    get_stdout().write_all(&[line_ending.into()])?;
     Ok(())
 }
 

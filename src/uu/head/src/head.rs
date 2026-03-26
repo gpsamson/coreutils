@@ -242,8 +242,8 @@ fn read_n_bytes(input: impl Read, n: u64) -> io::Result<u64> {
     let mut reader = input.take(n);
 
     // Write those bytes to `stdout`.
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
+    let mut _stdout_box = get_stdout();
+    let mut stdout = &mut *_stdout_box;
 
     let bytes_written = io::copy(&mut reader, &mut stdout).map_err(wrap_in_stdout_error)?;
 
@@ -260,9 +260,8 @@ fn read_n_lines(input: &mut impl io::BufRead, n: u64, separator: u8) -> io::Resu
     let mut reader = take_lines(input, n, separator);
 
     // Write those bytes to `stdout`.
-    let stdout = io::stdout();
-    let stdout = stdout.lock();
-    let mut writer = BufWriter::with_capacity(BUF_SIZE, stdout);
+    let mut _stdout_box = get_stdout();
+    let mut writer = BufWriter::with_capacity(BUF_SIZE, &mut *_stdout_box);
 
     let bytes_written = io::copy(&mut reader, &mut writer).map_err(wrap_in_stdout_error)?;
 
@@ -281,8 +280,8 @@ fn catch_too_large_numbers_in_backwards_bytes_or_lines(n: u64) -> Option<usize> 
 fn read_but_last_n_bytes(mut input: impl Read, n: u64) -> io::Result<u64> {
     let mut bytes_written: u64 = 0;
     if let Some(n) = catch_too_large_numbers_in_backwards_bytes_or_lines(n) {
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
+        let mut _stdout_box = get_stdout();
+        let mut stdout = &mut *_stdout_box;
 
         bytes_written = copy_all_but_n_bytes(&mut input, &mut stdout, n)
             .map_err(wrap_in_stdout_error)?
@@ -298,8 +297,8 @@ fn read_but_last_n_bytes(mut input: impl Read, n: u64) -> io::Result<u64> {
 }
 
 fn read_but_last_n_lines(mut input: impl Read, n: u64, separator: u8) -> io::Result<u64> {
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
+    let mut _stdout_box = get_stdout();
+    let mut stdout = &mut *_stdout_box;
     if n == 0 {
         return io::copy(&mut input, &mut stdout).map_err(wrap_in_stdout_error);
     }
@@ -545,6 +544,14 @@ fn uu_head(options: &HeadOptions) -> UResult<()> {
     // called above. If that happens, then this process will exit with
     // a non-zero exit code.
     Ok(())
+}
+
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
 }
 
 #[uucore::main]

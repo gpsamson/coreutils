@@ -216,6 +216,14 @@ mod options {
     pub static IGNORED_U: &str = "ignored-u";
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
@@ -477,8 +485,8 @@ fn get_input_type(path: &OsString) -> CatResult<InputType> {
 /// Writes handle to stdout with no configuration. This allows a
 /// simple memory copy.
 fn write_fast<R: FdReadable>(handle: &mut InputHandle<R>) -> CatResult<()> {
-    let stdout = io::stdout();
-    let mut stdout_lock = stdout.lock();
+    let mut _stdout_box = get_stdout();
+    let mut stdout_lock = &mut *_stdout_box;
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // If we're on Linux or Android, try to use the splice() system call
@@ -522,10 +530,9 @@ fn write_lines<R: FdReadable>(
     state: &mut OutputState,
 ) -> CatResult<()> {
     let mut in_buf = [0; 1024 * 31];
-    let stdout = io::stdout();
-    let stdout = stdout.lock();
+    let mut _stdout_box = get_stdout();
     // Add a 32K buffer for stdout - this greatly improves performance.
-    let mut writer = BufWriter::with_capacity(32 * 1024, stdout);
+    let mut writer = BufWriter::with_capacity(32 * 1024, &mut *_stdout_box);
 
     loop {
         let n = match handle.reader.read(&mut in_buf) {

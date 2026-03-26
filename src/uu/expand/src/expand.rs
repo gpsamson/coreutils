@@ -8,7 +8,7 @@
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, Write, stdin, stdout};
+use std::io::{BufReader, BufWriter, Read, Write, stdin};
 use std::num::IntErrorKind;
 use std::path::Path;
 use std::str::from_utf8;
@@ -239,7 +239,16 @@ fn expand_shortcuts(args: Vec<OsString>) -> Vec<OsString> {
     processed_args
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches =
         uucore::clap_localization::handle_clap_result(uu_app(), expand_shortcuts(args.collect()))?;
@@ -391,7 +400,7 @@ fn classify_char(buf: &[u8], byte: usize, utf8: bool) -> (CharType, usize, usize
 /// Write spaces for a tab expansion.
 #[inline]
 fn write_tab_spaces(
-    output: &mut BufWriter<std::io::Stdout>,
+    output: &mut BufWriter<Box<dyn Write>>,
     nts: usize,
     tspaces: &str,
 ) -> std::io::Result<()> {
@@ -404,7 +413,7 @@ fn write_tab_spaces(
 
 fn expand_buf(
     buf: &[u8],
-    output: &mut BufWriter<std::io::Stdout>,
+    output: &mut BufWriter<Box<dyn Write>>,
     tabstops: &[usize],
     options: &Options,
     col: &mut usize,
@@ -478,7 +487,7 @@ fn expand_buf(
 
 fn expand_file(
     file: &OsString,
-    output: &mut BufWriter<std::io::Stdout>,
+    output: &mut BufWriter<Box<dyn Write>>,
     options: &Options,
 ) -> UResult<()> {
     let mut buf = [0u8; 4096];
@@ -499,7 +508,7 @@ fn expand_file(
 }
 
 fn expand(options: &Options) -> UResult<()> {
-    let mut output = BufWriter::new(stdout());
+    let mut output = BufWriter::new(get_stdout());
 
     for file in &options.files {
         if let Err(e) = expand_file(file, &mut output, options) {

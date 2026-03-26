@@ -8,7 +8,7 @@
 use clap::{Arg, ArgAction, Command};
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, Stdout, Write, stdin, stdout};
+use std::io::{BufReader, BufWriter, Read, Write, stdin};
 use std::num::IntErrorKind;
 use std::path::Path;
 use std::str::from_utf8;
@@ -226,7 +226,16 @@ fn expand_shortcuts(args: Vec<OsString>) -> Vec<OsString> {
     processed_args
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches =
         uucore::clap_localization::handle_clap_result(uu_app(), expand_shortcuts(args.collect()))?;
@@ -345,7 +354,7 @@ fn next_tabstop(tab_config: &TabConfig, col: usize) -> Option<usize> {
 }
 
 fn write_tabs(
-    output: &mut BufWriter<Stdout>,
+    output: &mut BufWriter<Box<dyn Write>>,
     tab_config: &TabConfig,
     print_state: &mut PrintState,
     amode: bool,
@@ -434,7 +443,7 @@ impl PrintState {
 #[allow(clippy::cognitive_complexity)]
 fn unexpand_buf(
     buf: &[u8],
-    output: &mut BufWriter<Stdout>,
+    output: &mut BufWriter<Box<dyn Write>>,
     options: &Options,
     lastcol: usize,
     tab_config: &TabConfig,
@@ -548,7 +557,7 @@ fn unexpand_buf(
 
 fn unexpand_file(
     file: &OsString,
-    output: &mut BufWriter<Stdout>,
+    output: &mut BufWriter<Box<dyn Write>>,
     options: &Options,
     lastcol: usize,
     tab_config: &TabConfig,
@@ -583,7 +592,7 @@ fn unexpand_file(
 
 fn unexpand(options: &Options) -> UResult<()> {
     let mut buf = [0u8; 128];
-    let mut output = BufWriter::new(stdout());
+    let mut output = BufWriter::new(get_stdout());
     let tab_config = &options.tab_config;
     let lastcol = if tab_config.tabstops.len() > 1
         && tab_config.increment_size.is_none()

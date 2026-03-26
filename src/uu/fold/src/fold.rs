@@ -7,7 +7,7 @@
 
 use clap::{Arg, ArgAction, Command};
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write, stdin, stdout};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write, stdin};
 use std::path::Path;
 use unicode_width::UnicodeWidthChar;
 use uucore::display::Quotable;
@@ -46,6 +46,14 @@ struct FoldContext<'a, W: Write> {
     output: &'a mut Vec<u8>,
     col_count: &'a mut usize,
     last_space: &'a mut Option<usize>,
+}
+
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
 }
 
 #[uucore::main]
@@ -145,7 +153,7 @@ fn fold(
     spaces: bool,
     width: usize,
 ) -> UResult<()> {
-    let mut output = BufWriter::new(stdout());
+    let mut output = BufWriter::new(get_stdout());
 
     for filename in filenames {
         let filename: &str = filename;

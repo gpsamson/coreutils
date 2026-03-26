@@ -382,7 +382,16 @@ impl UError for WcError {
     }
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
 
@@ -994,7 +1003,7 @@ fn wc(inputs: &Inputs, settings: &Settings) -> UResult<()> {
         }
         // Print deferred error after stats to match GNU wc output order
         if let Some(err) = deferred_error {
-            let _ = io::stdout().flush();
+            let _ = get_stdout().flush();
             show!(err);
         }
     }
@@ -1018,7 +1027,7 @@ fn print_stats(
     title: Option<&OsStr>,
     number_width: usize,
 ) -> io::Result<()> {
-    let mut stdout = io::stdout().lock();
+    let mut stdout = get_stdout();
 
     let maybe_cols = [
         (settings.show_lines, result.lines),

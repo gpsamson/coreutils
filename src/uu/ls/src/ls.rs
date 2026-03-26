@@ -18,7 +18,7 @@ use std::{
     cmp::Reverse,
     ffi::{OsStr, OsString},
     fs::{self, DirEntry, FileType, Metadata, ReadDir},
-    io::{BufWriter, ErrorKind, Stdout, Write, stdout},
+    io::{BufWriter, ErrorKind, Write},
     ops::RangeInclusive,
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -113,7 +113,16 @@ impl UError for LsError {
     }
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result_with_exit_code(uu_app(), args, 2)?;
 
@@ -900,8 +909,7 @@ impl<'a> PathData<'a> {
                 match get_metadata_with_deref_opt(self.path(), self.must_dereference) {
                     Err(err) => {
                         // FIXME: A bit tricky to propagate the result here
-                        let mut out: std::io::StdoutLock<'static> = stdout().lock();
-                        let _ = out.flush();
+                        let _ = get_stdout().flush();
                         let errno = err.raw_os_error().unwrap_or(1i32);
                         // a bad fd will throw an error when dereferenced,
                         // but GNU will not throw an error until a bad fd "dir"
@@ -979,7 +987,7 @@ type DirData = (PathBuf, bool);
 // A struct to encapsulate state that is passed around from `list` functions.
 #[cfg_attr(not(unix), allow(dead_code))]
 struct ListState<'a> {
-    out: BufWriter<Stdout>,
+    out: BufWriter<Box<dyn Write>>,
     style_manager: Option<StyleManager<'a>>,
     // TODO: More benchmarking with different use cases is required here.
     // From experiments, BTreeMap may be faster than HashMap, especially as the
@@ -1010,7 +1018,7 @@ pub fn list(locs: Vec<&Path>, config: &Config) -> UResult<()> {
     let now = SystemTime::now();
 
     let mut state = ListState {
-        out: BufWriter::new(stdout()),
+        out: BufWriter::new(get_stdout()),
         style_manager: config.color.as_ref().map(StyleManager::new),
         #[cfg(unix)]
         uid_cache: FxHashMap::default(),
@@ -1352,7 +1360,7 @@ fn get_metadata_with_deref_opt(p_buf: &Path, dereference: bool) -> std::io::Resu
     }
 }
 
-fn write_total(items: &[PathData], config: &Config, out: &mut BufWriter<Stdout>) -> UResult<usize> {
+fn write_total(items: &[PathData], config: &Config, out: &mut BufWriter<Box<dyn Write>>) -> UResult<usize> {
     let mut total_size = 0;
     for item in items {
         total_size += item

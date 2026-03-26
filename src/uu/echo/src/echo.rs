@@ -7,7 +7,7 @@ use clap::builder::ValueParser;
 use clap::{Arg, ArgAction, Command};
 use std::env;
 use std::ffi::{OsStr, OsString};
-use std::io::{StdoutLock, Write, stdout};
+use std::io::Write;
 use uucore::error::UResult;
 use uucore::format::{FormatChar, OctalParsing, parse_escape_only};
 use uucore::{crate_version, format_usage, os_str_as_bytes};
@@ -119,6 +119,14 @@ fn filter_flags(args: impl Iterator<Item = OsString>) -> (impl Iterator<Item = O
     (args, options)
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     // args[0] is the name of the binary.
@@ -166,7 +174,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
             uu_app().print_help()?;
             return Ok(());
         } else if first_arg == "--version" && args.peek().is_none() {
-            writeln!(stdout(), "echo {}", crate_version!())?;
+            { let mut w = get_stdout(); writeln!(w, "echo {}", crate_version!())?; }
             return Ok(());
         }
 
@@ -177,7 +185,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
         (Box::new(args), Options::default())
     };
 
-    execute(&mut stdout().lock(), args, options)?;
+    { let mut w = get_stdout(); execute(&mut *w, args, options)?; }
 
     Ok(())
 }
@@ -225,7 +233,7 @@ pub fn uu_app() -> Command {
 }
 
 fn execute(
-    stdout: &mut StdoutLock,
+    stdout: &mut dyn Write,
     args: impl Iterator<Item = OsString>,
     options: Options,
 ) -> UResult<()> {

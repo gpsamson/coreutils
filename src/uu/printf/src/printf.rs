@@ -4,7 +4,6 @@
 // file that was distributed with this source code.
 use clap::{Arg, ArgAction, Command};
 use std::ffi::OsString;
-use std::io::stdout;
 use std::ops::ControlFlow;
 use uucore::display::Quotable;
 use uucore::error::{UResult, UUsageError};
@@ -20,7 +19,16 @@ mod options {
     pub const ARGUMENT: &str = "ARGUMENT";
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
 
@@ -43,7 +51,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
         if let Ok(FormatItem::Spec(_)) = item {
             format_seen = true;
         }
-        match item?.write(stdout(), &mut args)? {
+        match item?.write(&mut *get_stdout(), &mut args)? {
             ControlFlow::Continue(()) => {}
             ControlFlow::Break(()) => return Ok(()),
         }
@@ -70,7 +78,7 @@ pub fn uumain(args: impl uucore::Args) -> UResult<()> {
 
     while !args.is_exhausted() {
         for item in parse_spec_and_escape(format) {
-            match item?.write(stdout(), &mut args)? {
+            match item?.write(&mut *get_stdout(), &mut args)? {
                 ControlFlow::Continue(()) => {}
                 ControlFlow::Break(()) => return Ok(()),
             }

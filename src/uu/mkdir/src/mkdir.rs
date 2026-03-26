@@ -9,7 +9,7 @@ use clap::builder::ValueParser;
 use clap::parser::ValuesRef;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use std::ffi::OsString;
-use std::io::{Write, stdout};
+use std::io::{Write};
 use std::path::{Path, PathBuf};
 #[cfg(all(unix, target_os = "linux"))]
 use uucore::error::FromIo;
@@ -70,7 +70,16 @@ fn get_mode(matches: &ArgMatches) -> Result<u32, String> {
     }
 }
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
+
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     // Linux-specific options, not implemented
     // opts.optflag("Z", "context", "set SELinux security context" +
@@ -313,8 +322,8 @@ fn create_single_dir(path: &Path, is_parent: bool, config: &Config) -> UResult<(
     match create_dir_with_mode(path, create_mode) {
         Ok(()) => {
             if config.verbose {
-                writeln!(
-                    stdout(),
+                let mut _w = get_stdout();
+                writeln!(_w,
                     "{}",
                     translate!("mkdir-verbose-created-directory", "util_name" => uucore::util_name(), "path" => path.quote())
                 )?;
@@ -363,8 +372,8 @@ fn create_single_dir(path: &Path, is_parent: bool, config: &Config) -> UResult<(
             // Print verbose message for logical directories, even if they exist
             // This matches GNU behavior for paths like "test_dir/../test_dir_a"
             if config.verbose && is_parent && config.recursive && !ends_with_parent_dir {
-                writeln!(
-                    stdout(),
+                let mut _w = get_stdout();
+                writeln!(_w,
                     "{}",
                     translate!("mkdir-verbose-created-directory", "util_name" => uucore::util_name(), "path" => path.quote())
                 )?;
