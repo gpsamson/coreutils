@@ -32,8 +32,10 @@ use std::io::{self, BufWriter, Stdout, StdoutLock, Write as IoWrite};
 
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
-#[cfg(target_os = "wasi")]
+#[cfg(all(target_os = "wasi", not(target_env = "p2")))]
 use std::os::wasi::ffi::OsStrExt;
+#[cfg(all(target_os = "wasi", target_env = "p2"))]
+use std::os::unix::ffi::OsStrExt;
 
 // These used to be defined here, but they live in their own crate now.
 pub use os_display::{Quotable, Quoted};
