@@ -1382,7 +1382,7 @@ fn get_block_size(md: &Metadata, config: &Config) -> u64 {
     /* GNU ls will display sizes in terms of block size
        md.len() will differ from this value when the file has some holes
     */
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_arch = "wasm32")))]
     {
         use uucore::format::human::SizeFormat;
 
@@ -1396,9 +1396,9 @@ fn get_block_size(md: &Metadata, config: &Config) -> u64 {
             SizeFormat::Bytes => raw_blocks / config.block_size,
         }
     }
-    #[cfg(not(unix))]
+    #[cfg(any(not(unix), target_arch = "wasm32"))]
     {
-        // no way to get block size for windows, fall-back to file size
+        // no way to get block size on windows/wasm — fall back to file size
         md.len()
     }
 }
