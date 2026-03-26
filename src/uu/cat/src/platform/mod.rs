@@ -8,9 +8,13 @@ pub use self::unix::is_unsafe_overwrite;
 
 #[cfg(windows)]
 pub use self::windows::is_unsafe_overwrite;
+#[cfg(not(any(unix, windows)))]
+pub use self::other::is_unsafe_overwrite;
 
 #[cfg(unix)]
 mod unix;
 
 #[cfg(windows)]
 mod windows;
+#[cfg(not(any(unix, windows)))]
+mod other;

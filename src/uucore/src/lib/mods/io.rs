@@ -74,6 +74,12 @@ impl OwnedFileDescriptorOrHandle {
 
     /// instantiates a corresponding `Stdio`
     pub fn into_stdio(self) -> Stdio {
+        #[cfg(target_os = "wasi")]
+        {
+            // `Stdio: From<OwnedFd>` is not available on WASI, but `From<File>` is.
+            return Stdio::from(File::from(self.fx));
+        }
+        #[cfg(not(target_os = "wasi"))]
         Stdio::from(self.fx)
     }
 

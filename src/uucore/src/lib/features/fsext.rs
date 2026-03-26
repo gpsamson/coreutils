@@ -541,6 +541,11 @@ pub fn read_fs_list() -> UResult<Vec<MountInfo>> {
         // No method to read mounts, yet
         Ok(Vec::new())
     }
+    #[cfg(target_os = "wasi")]
+    {
+        // WASI hosts virtualize mounts; a portable mount table API is not available.
+        Ok(Vec::new())
+    }
 }
 
 #[derive(Debug, Clone)]

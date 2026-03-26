@@ -49,6 +49,7 @@ macro_rules! has {
 pub struct FileInformation(
     #[cfg(unix)] nix::sys::stat::FileStat,
     #[cfg(windows)] winapi_util::file::Information,
+    #[cfg(not(any(unix, windows)))] std::fs::Metadata,
 );
 
 impl FileInformation {
@@ -95,6 +96,15 @@ impl FileInformation {
             let file = open_options.read(true).open(path.as_ref())?;
             Self::from_file(&file)
         }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let md = if dereference {
+                std::fs::metadata(path.as_ref())?
+            } else {
+                std::fs::symlink_metadata(path.as_ref())?
+            };
+            Ok(Self(md))
+        }
     }
 
     pub fn file_size(&self) -> u64 {
@@ -106,6 +116,10 @@ impl FileInformation {
         #[cfg(target_os = "windows")]
         {
             self.0.file_size()
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            self.0.len()
         }
     }
 
@@ -157,6 +171,8 @@ impl FileInformation {
         return self.0.st_nlink.try_into().unwrap();
         #[cfg(windows)]
         return self.0.number_of_links();
+        #[cfg(not(any(unix, windows)))]
+        return 1;
     }
 
     #[cfg(unix)]
@@ -184,6 +200,13 @@ impl PartialEq for FileInformation {
     }
 }
 
+#[cfg(not(any(unix, windows)))]
+impl PartialEq for FileInformation {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.len() == other.0.len() && self.0.is_dir() == other.0.is_dir()
+    }
+}
+
 impl Eq for FileInformation {}
 
 impl Hash for FileInformation {
@@ -197,6 +220,11 @@ impl Hash for FileInformation {
         {
             self.0.volume_serial_number().hash(state);
             self.0.file_index().hash(state);
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            self.0.len().hash(state);
+            self.0.is_dir().hash(state);
         }
     }
 }
@@ -718,6 +746,11 @@ pub fn path_ends_with_terminator(path: &Path) -> bool {
         .is_some_and(|wide| wide == b'/'.into() || wide == b'\\'.into())
 }
 
+#[cfg(not(any(unix, windows)))]
+pub fn path_ends_with_terminator(path: &Path) -> bool {
+    path.to_string_lossy().ends_with('/')
+}
+
 /// Checks if the standard input (stdin) is a directory.
 ///
 /// # Arguments
@@ -746,11 +779,16 @@ pub fn is_stdin_directory(stdin: &Stdin) -> bool {
         }
         false
     }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = stdin;
+        false
+    }
 }
 
 pub mod sane_blksize {
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(unix)]
     use std::os::unix::fs::MetadataExt;
     use std::{fs::metadata, path::Path};
 
@@ -777,12 +815,12 @@ pub mod sane_blksize {
         #[cfg(unix)] metadata: &std::fs::Metadata,
         #[cfg(not(unix))] _: &std::fs::Metadata,
     ) -> u64 {
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(unix)]
         {
             sane_blksize(metadata.blksize())
         }
 
-        #[cfg(target_os = "windows")]
+        #[cfg(not(unix))]
         {
             DEFAULT
         }

@@ -24,7 +24,6 @@ path = "src/ls.rs"
 ansi-width = { workspace = true }
 clap = { workspace = true, features = ["env"] }
 glob = { workspace = true }
-hostname = { workspace = true }
 lscolors = { workspace = true }
 rustc-hash = { workspace = true }
 selinux = { workspace = true, optional = true }
@@ -45,6 +44,9 @@ uucore = { workspace = true, features = [
 ] }
 uutils_term_grid = { workspace = true }
 fluent = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+hostname = { workspace = true }
 
 [[bin]]
 name = "ls"
