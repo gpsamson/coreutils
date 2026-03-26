@@ -154,6 +154,14 @@ static OPT_DEBUG: &str = "debug";
 static OPT_CONTEXT: &str = "context";
 static OPT_SELINUX: &str = "selinux";
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
@@ -702,7 +710,7 @@ fn rename(
     if to.exists() {
         if opts.update == UpdateMode::None {
             if opts.debug {
-                println!("{}", translate!("mv-debug-skipped", "target" => to.quote()));
+                { let mut _w = get_stdout(); writeln!(_w, "{}", translate!("mv-debug-skipped", "target" => to.quote())).ok(); }
             }
             return Ok(());
         }
@@ -721,7 +729,7 @@ fn rename(
         match opts.overwrite {
             OverwriteMode::NoClobber => {
                 if opts.debug {
-                    println!("{}", translate!("mv-debug-skipped", "target" => to.quote()));
+                    { let mut _w = get_stdout(); writeln!(_w, "{}", translate!("mv-debug-skipped", "target" => to.quote())).ok(); }
                 }
                 return Ok(());
             }
@@ -786,9 +794,9 @@ fn rename(
 
         match display_manager {
             Some(pb) => pb.suspend(|| {
-                println!("{message}");
+                let mut _w = get_stdout(); writeln!(_w, "{message}").ok();
             }),
-            None => println!("{message}"),
+            None => { let mut _w = get_stdout(); writeln!(_w, "{message}").ok(); },
         }
     }
     Ok(())

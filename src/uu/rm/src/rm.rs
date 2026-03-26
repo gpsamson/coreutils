@@ -54,20 +54,14 @@ impl UError for RmError {}
 /// Helper function to print verbose message for removed file
 fn verbose_removed_file(path: &Path, options: &Options) {
     if options.verbose {
-        println!(
-            "{}",
-            translate!("rm-verbose-removed", "file" => uucore::fs::normalize_path(path).quote())
-        );
+        { let mut _w = get_stdout(); writeln!(_w, "{}", translate!("rm-verbose-removed", "file" => uucore::fs::normalize_path(path).quote())).ok(); }
     }
 }
 
 /// Helper function to print verbose message for removed directory
 fn verbose_removed_directory(path: &Path, options: &Options) {
     if options.verbose {
-        println!(
-            "{}",
-            translate!("rm-verbose-removed-directory", "file" => uucore::fs::normalize_path(path).quote())
-        );
+        { let mut _w = get_stdout(); writeln!(_w, "{}", translate!("rm-verbose-removed-directory", "file" => uucore::fs::normalize_path(path).quote())).ok(); }
     }
 }
 
@@ -199,6 +193,14 @@ static OPT_PROGRESS: &str = "progress";
 static PRESUME_INPUT_TTY: &str = "-presume-input-tty";
 
 static ARG_FILES: &str = "files";
+
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
 
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {

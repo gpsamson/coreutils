@@ -23,6 +23,14 @@ static OPT_VERBOSE: &str = "verbose";
 
 static ARG_DIRS: &str = "dirs";
 
+#[inline]
+fn get_stdout() -> Box<dyn std::io::Write> {
+    #[cfg(target_arch = "wasm32")]
+    { uucore::output_capture::stdout() }
+    #[cfg(not(target_arch = "wasm32"))]
+    { Box::new(std::io::stdout()) }
+}
+
 #[uucore::main]
 pub fn uumain(args: impl uucore::Args) -> UResult<()> {
     let matches = uucore::clap_localization::handle_clap_result(uu_app(), args)?;
@@ -112,10 +120,7 @@ fn remove(mut path: &Path, opts: Opts) -> Result<(), Error<'_>> {
 
 fn remove_single(path: &Path, opts: Opts) -> Result<(), Error<'_>> {
     if opts.verbose {
-        println!(
-            "{}",
-            translate!("rmdir-verbose-removing-directory", "util_name" => util_name(), "path" => path.quote())
-        );
+        { let mut _w = get_stdout(); writeln!(_w, "{}", translate!("rmdir-verbose-removing-directory", "util_name" => util_name(), "path" => path.quote())).ok(); }
     }
     remove_dir(path).map_err(|error| Error { error, path })
 }
