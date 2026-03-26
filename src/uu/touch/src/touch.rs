@@ -827,6 +827,10 @@ fn pathbuf_from_stdout() -> Result<PathBuf, TouchError> {
     {
         Ok(PathBuf::from("/proc/self/fd/1"))
     }
+    #[cfg(target_os = "wasi")]
+    {
+        Ok(PathBuf::from("/dev/stdout"))
+    }
     #[cfg(windows)]
     {
         use std::os::windows::prelude::AsRawHandle;

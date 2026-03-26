@@ -16,3 +16,12 @@ mod unix;
 
 #[cfg(windows)]
 mod windows;
+
+// For non-Unix, non-Windows targets (e.g. wasm32-wasip2), read $USER env var.
+#[cfg(not(any(unix, windows)))]
+use std::{ffi::OsString, io};
+
+#[cfg(not(any(unix, windows)))]
+pub fn get_username() -> io::Result<OsString> {
+    Ok(std::env::var_os("USER").unwrap_or_else(|| OsString::from("user")))
+}

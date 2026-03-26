@@ -750,3 +750,6 @@ large_types_passed_by_value = "allow"
 
 [workspace.metadata.cargo-shear]
 ignored = ["clap", "fluent", "libstdbuf"]
+
+[patch.crates-io]
+hostname = { path = "vendor/hostname" }
